@@ -1,0 +1,20 @@
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+*.so
+.venv/
+
+# Data and outputs
+data/
+runs/
+outputs/
+checkpoints/
+
+# Notebooks
+*.ipynb_checkpoints
+
+# IDE
+.idea/
+.vscode/
+.DS_Store

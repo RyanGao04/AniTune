@@ -1,0 +1,27 @@
+seed: 42
+run_name: lora_vitb16
+save_dir: runs
+
+data:
+  root: data/icartoonface/train
+  img_size: 224
+  train_split: 0.9
+  batch_size: 64
+  num_workers: 8
+  use_grayscale: false
+
+model:
+  name: vit_base_patch16_224
+  num_classes: 5013
+  pretrained: true
+  use_lora: true
+  lora_rank: 8
+  lora_alpha: 16
+  lora_dropout: 0.05
+
+optim:
+  lr: 2.0e-4
+  weight_decay: 0.05
+  epochs: 10
+  amp: true
+  log_interval: 50

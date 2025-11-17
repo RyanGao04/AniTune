@@ -1,0 +1,10 @@
+# Core training stack
+torch
+torchvision
+pyyaml
+timm
+tqdm
+
+# Optional: experiment tracking / analysis
+pandas
+matplotlib
