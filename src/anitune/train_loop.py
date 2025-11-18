@@ -60,7 +60,7 @@ def evaluate(model, loader, criterion, device, amp: bool = True) -> Dict[str, fl
     total_samples = 0
 
     with torch.no_grad():
-        for images, labels in loader:
+        for images, labels in tqdm(loader, desc="eval", leave=False):
             images, labels = images.to(device, non_blocking=True), labels.to(device, non_blocking=True)
             with autocast(enabled=amp):
                 outputs = model(images)

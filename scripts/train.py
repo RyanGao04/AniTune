@@ -30,10 +30,12 @@ def parse_args():
 def main():
     args = parse_args()
     cfg = load_config(args.config)
+    print(f"[setup] Loaded config from {args.config}")
 
     data_cfg = DataConfig(**cfg["data"])
     if args.data_root:
         data_cfg.root = args.data_root
+    print(f"[data] Root: {data_cfg.root} | using manifests: {data_cfg.manifest_dir}")
     model_cfg = ModelConfig(**cfg["model"])
     optim_cfg = OptimConfig(**cfg["optim"])
 
@@ -41,11 +43,16 @@ def main():
         model_cfg.use_lora = False
 
     set_seed(cfg.get("seed", 42))
-
+    print("[setup] Building dataloaders (may pause briefly if filesystem is cold)...")
     train_loader, val_loader = build_dataloaders(data_cfg)
-    num_classes = len(train_loader.dataset.dataset.classes)
+    # ManifestDataset does not nest a dataset attribute; ImageFolder does.
+    if hasattr(train_loader.dataset, "dataset") and hasattr(train_loader.dataset.dataset, "classes"):
+        num_classes = len(train_loader.dataset.dataset.classes)
+    else:
+        num_classes = len(set(label for _, label in train_loader.dataset))
     model_cfg.num_classes = num_classes
 
+    print(f"[model] Building model {model_cfg.name} (pretrained={model_cfg.pretrained}, lora={model_cfg.use_lora})")
     model = build_model(model_cfg)
     if args.head_only:
         freeze_backbone(model, unfreeze_head=True)
@@ -69,6 +76,8 @@ def main():
             name=args.wandb_run_name or cfg.get("run_name", "experiment"),
             config={**cfg, "num_classes": num_classes},
         )
+
+    print(f"[train] Starting training for {optim_cfg.epochs} epochs on {device} (num_classes={num_classes})")
 
     def log_fn(metrics):
         if wandb_run:

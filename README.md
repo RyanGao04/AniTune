@@ -26,6 +26,16 @@ python scripts/eval.py --config configs/lora_vitb16.yaml --checkpoint runs/lora_
 python scripts/train.py --config configs/lora_vitb16.yaml --data-root data/personai_icartoonface_rectrain/icartoonface_rectrain --wandb --wandb-project AniTune
 ```
 
+## Quick smoke test (small subset)
+- Create small manifests (e.g., 20 IDs, max 10 images each) to validate the pipeline quickly:
+```bash
+python scripts/prepare_icartoonface.py --source data/personai_icartoonface_rectrain/icartoonface_rectrain --output data/icartoonface --val-ratio 0.1 --seed 42 --max-ids 20 --max-per-id 10
+```
+- Then run the smoke config (1 epoch, tiny batch, no pretrained download):
+```bash
+python scripts/train.py --config configs/smoke.yaml --data-root data/personai_icartoonface_rectrain/icartoonface_rectrain
+```
+
 ## Project Structure
 - `configs/`: YAML configs for LoRA and full fine-tuning variants.
 - `scripts/`: Entry points for training/eval.

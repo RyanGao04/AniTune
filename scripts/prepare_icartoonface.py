@@ -21,10 +21,14 @@ def main():
     parser.add_argument("--output", type=Path, required=True, help="Output directory for manifests/stats")
     parser.add_argument("--val-ratio", type=float, default=0.1, help="Validation ratio per identity")
     parser.add_argument("--seed", type=int, default=42)
+    parser.add_argument("--max-ids", type=int, default=None, help="Optional: limit number of identities for a smoke split")
+    parser.add_argument("--max-per-id", type=int, default=None, help="Optional: cap images per identity (after shuffling)")
     args = parser.parse_args()
 
     rng = random.Random(args.seed)
     identities = gather_identities(args.source)
+    if args.max_ids:
+        identities = identities[: args.max_ids]
     manifest_dir = args.output / "splits"
     manifest_dir.mkdir(parents=True, exist_ok=True)
 
@@ -38,6 +42,8 @@ def main():
             skipped += 1
             continue
         rng.shuffle(images)
+        if args.max_per_id:
+            images = images[: args.max_per_id]
         n = len(images)
         hist[n] += 1
         val_count = max(1, int(n * args.val_ratio)) if n > 1 else 0
