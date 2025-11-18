@@ -63,6 +63,8 @@ def main():
     else:
         num_classes = len(set(label for _, label in train_loader.dataset))
     model_cfg.num_classes = num_classes
+    if getattr(model_cfg, "img_size", None) is None:
+        model_cfg.img_size = data_cfg.img_size
 
     print(f"[model] Building model {model_cfg.name} (pretrained={model_cfg.pretrained}, lora={model_cfg.use_lora})")
     model = build_model(model_cfg)

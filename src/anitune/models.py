@@ -17,10 +17,18 @@ class ModelConfig:
     lora_rank: int = 8
     lora_alpha: int = 16
     lora_dropout: float = 0.0
+    img_size: int | None = None
 
 
 def build_model(cfg: ModelConfig) -> nn.Module:
-    model = timm.create_model(cfg.name, pretrained=cfg.pretrained, num_classes=cfg.num_classes)
+    extra = {}
+    if cfg.img_size:
+        extra["img_size"] = cfg.img_size
+    try:
+        model = timm.create_model(cfg.name, pretrained=cfg.pretrained, num_classes=cfg.num_classes, **extra)
+    except TypeError:
+        # Fallback if img_size unsupported by the model
+        model = timm.create_model(cfg.name, pretrained=cfg.pretrained, num_classes=cfg.num_classes)
     if cfg.use_lora:
         apply_lora_to_attention(
             model,

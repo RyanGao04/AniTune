@@ -1,29 +1,29 @@
 seed: 42
-run_name: cpu_vit_tiny
+run_name: mps_vit_small
 save_dir: runs
 
 data:
   root: data/personai_icartoonface_rectrain/icartoonface_rectrain
-  img_size: 160
+  img_size: 224
   train_split: 0.9
-  batch_size: 4
-  num_workers: 0
+  batch_size: 64
+  num_workers: 4
   use_grayscale: false
   manifest_dir: data/icartoonface/splits
 
 model:
-  name: vit_tiny_patch16_224
+  name: vit_small_patch16_224
   num_classes: 5013  # overwritten dynamically
-  pretrained: false  # set true if weights available/cached
+  pretrained: false  # set true if weights cached/allowed
   use_lora: true
-  lora_rank: 4
-  lora_alpha: 8
+  lora_rank: 8
+  lora_alpha: 16
   lora_dropout: 0.0
-  img_size: 160
+  img_size: 224
 
 optim:
-  lr: 5.0e-4
+  lr: 3.0e-4
   weight_decay: 0.05
-  epochs: 1
-  amp: false
-  log_interval: 10
+  epochs: 3
+  amp: true
+  log_interval: 20

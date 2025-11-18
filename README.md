@@ -41,6 +41,14 @@ python scripts/train.py --config configs/smoke.yaml --data-root data/personai_ic
 ```bash
 python scripts/train.py --config configs/cpu_tiny.yaml --data-root data/personai_icartoonface_rectrain/icartoonface_rectrain --device cpu --pretrained false --batch-size 4 --num-workers 0 --epochs 1
 ```
+This config sets `vit_tiny_patch16_224` with `img_size: 160` to reduce compute; model creation now respects the `img_size` field.
+
+## Apple Silicon (M-series) higher-load test
+- Try an MPS run with a larger model/batch to exercise the GPU/CPU more:
+```bash
+python scripts/train.py --config configs/mps_medium.yaml --data-root data/personai_icartoonface_rectrain/icartoonface_rectrain --device mps --batch-size 64 --num-workers 4 --epochs 3
+```
+If you have cached weights or allow downloads, set `--pretrained true` (or update the config). Adjust batch size/downscale to 32 if you hit memory limits.
 
 ## Project Structure
 - `configs/`: YAML configs for LoRA and full fine-tuning variants.
