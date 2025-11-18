@@ -17,6 +17,13 @@ class DataConfig:
     use_grayscale: bool = False
     manifest_dir: Optional[Path] = None
 
+    def __post_init__(self):
+        # Accept str paths from YAML and normalize to Path objects
+        if not isinstance(self.root, Path):
+            self.root = Path(self.root)
+        if self.manifest_dir is not None and not isinstance(self.manifest_dir, Path):
+            self.manifest_dir = Path(self.manifest_dir)
+
 
 def build_transforms(img_size: int, use_grayscale: bool = False):
     channels = 1 if use_grayscale else 3
@@ -51,10 +58,14 @@ class ManifestDataset(Dataset):
         self.root = root
         self.transform = transform
         self.entries = []
+        labels = []
         with open(manifest, "r") as f:
             for line in f:
                 rel_path, label = line.strip().split()
-                self.entries.append((rel_path, int(label)))
+                label_int = int(label)
+                self.entries.append((rel_path, label_int))
+                labels.append(label_int)
+        self.classes = sorted(set(labels))
 
     def __len__(self):
         return len(self.entries)

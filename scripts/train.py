@@ -20,6 +20,7 @@ def parse_args():
     parser.add_argument("--wandb", action="store_true", help="Enable Weights & Biases logging")
     parser.add_argument("--wandb-project", default="AniTune", help="Weights & Biases project name")
     parser.add_argument("--wandb-run-name", default=None, help="Weights & Biases run name")
+    parser.add_argument("--num-workers", type=int, help="Override data.num_workers from config")
     return parser.parse_args()
 
 
@@ -30,6 +31,8 @@ def main():
     data_cfg = DataConfig(**cfg["data"])
     if args.data_root:
         data_cfg.root = args.data_root
+    if args.num_workers is not None:
+        data_cfg.num_workers = args.num_workers
     model_cfg = ModelConfig(**cfg["model"])
     optim_cfg = OptimConfig(**cfg["optim"])
 
@@ -39,7 +42,12 @@ def main():
     set_seed(cfg.get("seed", 42))
 
     train_loader, val_loader = build_dataloaders(data_cfg)
-    num_classes = len(train_loader.dataset.dataset.classes)
+    train_ds = train_loader.dataset
+    base_ds = getattr(train_ds, "dataset", train_ds)
+    if hasattr(base_ds, "classes"):
+        num_classes = len(base_ds.classes)
+    else:
+        raise SystemExit("Unable to infer number of classes from dataset.")
     model_cfg.num_classes = num_classes
 
     model = build_model(model_cfg)

@@ -1,46 +1,55 @@
 # AniTune
-Robust anime face recognition via ViT fine-tuning with LoRA on iCartoonFace.
+ViT fine-tuning with LoRA for robust anime face recognition on iCartoonFace.
 
-## Quickstart
-1) Create env and install deps (conda + pip):
+## Setup
 ```bash
-conda env create -f environment.yml  # or: python -m venv .venv && source .venv/bin/activate
-conda activate anitune
-pip install -r requirements.txt
+conda env create -f environment.yml && conda activate anitune
+python -m pip install -r requirements.txt  # ensures torch/timm versions match
 ```
-2) Prepare data in ImageFolder layout (e.g., `data/personai_icartoonface_rectrain/icartoonface_rectrain/<id>/*.jpg`) and generate manifests:
+Tip: set `PYTHONPATH=src` when running scripts from the repo root. The venv route works too, but conda is the tested setup.
+
+## Data
+1) Download iCartoonFace recognition split (mirrors from the paper):
+   - iQIYI: https://fft.cloud.iqiyi.com/s/bUbdw5A (pwd: 5Kv2M1)
+   - Google Drive: https://drive.google.com/drive/folders/1m6pAL9Wbn8B1td0hFUj9RVRrSweNKskW
+2) Extract to `data/personai_icartoonface_rectrain/icartoonface_rectrain/<identity_id>/*.jpg` (5013 IDs).
+3) Generate manifests (no file copying):
 ```bash
-python scripts/prepare_icartoonface.py --source data/personai_icartoonface_rectrain/icartoonface_rectrain --output data/icartoonface --val-ratio 0.1 --seed 42
+python scripts/prepare_icartoonface.py \
+  --source data/personai_icartoonface_rectrain/icartoonface_rectrain \
+  --output data/icartoonface \
+  --val-ratio 0.1 --seed 42
 ```
-3) Train LoRA baseline:
+
+## Training
+Baseline LoRA ViT-B/16 (uses manifests by default):
 ```bash
-python scripts/train.py --config configs/lora_vitb16.yaml --data-root data/personai_icartoonface_rectrain/icartoonface_rectrain
+PYTHONPATH=src python scripts/train.py \
+  --config configs/lora_vitb16.yaml \
+  --data-root data/personai_icartoonface_rectrain/icartoonface_rectrain
 ```
-4) Evaluate a checkpoint:
+Helpful flags:
+- `--num-workers 0` if shared memory is restricted (CPU runs).
+- `--no-lora` for full fine-tune; `--head-only` to freeze backbone.
+- `--wandb --wandb-project AniTune` to log to Weights & Biases.
+
+If offline, pretrained weights will be skipped automatically and the model will start from random init.
+
+## Evaluation
 ```bash
-python scripts/eval.py --config configs/lora_vitb16.yaml --checkpoint runs/lora_vitb16/best.pt --data-root data/personai_icartoonface_rectrain/icartoonface_rectrain
-```
-5) (Optional) Enable Weights & Biases logging:
-```bash
-python scripts/train.py --config configs/lora_vitb16.yaml --data-root data/personai_icartoonface_rectrain/icartoonface_rectrain --wandb --wandb-project AniTune
+PYTHONPATH=src python scripts/eval.py \
+  --config configs/lora_vitb16.yaml \
+  --checkpoint runs/lora_vitb16/best.pt \
+  --data-root data/personai_icartoonface_rectrain/icartoonface_rectrain
 ```
 
 ## Project Structure
-- `configs/`: YAML configs for LoRA and full fine-tuning variants.
-- `scripts/`: Entry points for training/eval.
+- `configs/`: YAML configs (LoRA and full FT).
+- `scripts/`: Entry points (`train.py`, `eval.py`, `prepare_icartoonface.py`).
 - `src/anitune/`: Library code (models, LoRA injection, data, train loop).
-- `runs/`: Default output directory for checkpoints and logs (created at runtime).
-- `data/`: Expected location for iCartoonFace assets (gitignored; not included).
+- `runs/`: Checkpoints and logs (created at runtime).
+- `data/`: Expected dataset location (gitignored).
 
-## Dataset (iCartoonFace)
-- Recognition split download (mirrors from upstream):  
-  - iQIYI: https://fft.cloud.iqiyi.com/s/bUbdw5A (pwd: 5Kv2M1)  
-  - Google Drive: https://drive.google.com/drive/folders/1m6pAL9Wbn8B1td0hFUj9RVRrSweNKskW?usp=sharing
-- After extracting, keep the structure `data/personai_icartoonface_rectrain/icartoonface_rectrain/<identity_id>/*.jpg` (5013 IDs, ~389k images).
-- Run the manifest prep step (see Quickstart) to write `data/icartoonface/splits/{train,val}.txt` and `stats.json` without copying files; the default config consumes these manifests.
-- Optional: keep detection set separate (`data/personai_icartoonface_rectest`) if you plan to add detection; current code only uses the recognition portion.
-
-## Goals (from proposal)
-- Compare LoRA vs full fine-tuning on ViT backbones (MAE/DINOv2 variants).
-- Report identification and verification metrics with parameter/latency costs.
-- Include ablations on LoRA rank and input resolution.
+## Notes
+- Default config: batch size 64, 10 epochs, 224² crops, LoRA rank 8 on ViT-B/16.
+- Keep detection split (`data/personai_icartoonface_rectest`) separate if you plan to extend to detection; current code is recognition-only.

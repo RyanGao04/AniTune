@@ -20,15 +20,26 @@ class ModelConfig:
     img_size: int | None = None
 
 
-def build_model(cfg: ModelConfig) -> nn.Module:
+def _create_timm_model(name: str, num_classes: int, pretrained: bool, img_size: int | None):
     extra = {}
-    if cfg.img_size:
-        extra["img_size"] = cfg.img_size
+    if img_size:
+        extra["img_size"] = img_size
     try:
-        model = timm.create_model(cfg.name, pretrained=cfg.pretrained, num_classes=cfg.num_classes, **extra)
+        return timm.create_model(name, pretrained=pretrained, num_classes=num_classes, **extra)
     except TypeError:
         # Fallback if img_size unsupported by the model
-        model = timm.create_model(cfg.name, pretrained=cfg.pretrained, num_classes=cfg.num_classes)
+        return timm.create_model(name, pretrained=pretrained, num_classes=num_classes)
+
+
+def build_model(cfg: ModelConfig) -> nn.Module:
+    try:
+        model = _create_timm_model(cfg.name, cfg.num_classes, cfg.pretrained, cfg.img_size)
+    except Exception as exc:
+        if cfg.pretrained:
+            print(f"Warning: failed to load pretrained weights ({exc}); falling back to random init.")
+            model = _create_timm_model(cfg.name, cfg.num_classes, pretrained=False, img_size=cfg.img_size)
+        else:
+            raise
     if cfg.use_lora:
         apply_lora_to_attention(
             model,
