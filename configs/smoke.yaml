@@ -1,0 +1,28 @@
+seed: 42
+run_name: smoke_vitb16
+save_dir: runs
+
+data:
+  root: data/personai_icartoonface_rectrain/icartoonface_rectrain
+  img_size: 224
+  train_split: 0.9
+  batch_size: 8
+  num_workers: 0
+  use_grayscale: false
+  manifest_dir: data/icartoonface/smoke_splits
+
+model:
+  name: vit_base_patch16_224
+  num_classes: 20  # will be overwritten after manifest load
+  pretrained: false
+  use_lora: true
+  lora_rank: 4
+  lora_alpha: 8
+  lora_dropout: 0.0
+
+optim:
+  lr: 5.0e-4
+  weight_decay: 0.05
+  epochs: 1
+  amp: true
+  log_interval: 10

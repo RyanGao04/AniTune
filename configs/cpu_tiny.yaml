@@ -1,0 +1,28 @@
+seed: 42
+run_name: cpu_vit_tiny
+save_dir: runs
+
+data:
+  root: data/personai_icartoonface_rectrain/icartoonface_rectrain
+  img_size: 160
+  train_split: 0.9
+  batch_size: 4
+  num_workers: 0
+  use_grayscale: false
+  manifest_dir: data/icartoonface/splits
+
+model:
+  name: vit_tiny_patch16_224
+  num_classes: 5013  # overwritten dynamically
+  pretrained: false  # set true if weights available/cached
+  use_lora: true
+  lora_rank: 4
+  lora_alpha: 8
+  lora_dropout: 0.0
+
+optim:
+  lr: 5.0e-4
+  weight_decay: 0.05
+  epochs: 1
+  amp: false
+  log_interval: 10

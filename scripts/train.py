@@ -24,6 +24,10 @@ def parse_args():
     parser.add_argument("--wandb", action="store_true", help="Enable Weights & Biases logging")
     parser.add_argument("--wandb-project", default="AniTune", help="Weights & Biases project name")
     parser.add_argument("--wandb-run-name", default=None, help="Weights & Biases run name")
+    parser.add_argument("--batch-size", type=int, help="Override data.batch_size")
+    parser.add_argument("--num-workers", type=int, help="Override data.num_workers")
+    parser.add_argument("--epochs", type=int, help="Override optim.epochs")
+    parser.add_argument("--pretrained", type=str, choices=["true", "false"], help="Override model.pretrained")
     return parser.parse_args()
 
 
@@ -35,12 +39,20 @@ def main():
     data_cfg = DataConfig(**cfg["data"])
     if args.data_root:
         data_cfg.root = args.data_root
+    if args.batch_size:
+        data_cfg.batch_size = args.batch_size
+    if args.num_workers is not None:
+        data_cfg.num_workers = args.num_workers
     print(f"[data] Root: {data_cfg.root} | using manifests: {data_cfg.manifest_dir}")
     model_cfg = ModelConfig(**cfg["model"])
     optim_cfg = OptimConfig(**cfg["optim"])
+    if args.epochs is not None:
+        optim_cfg.epochs = args.epochs
 
     if args.no_lora:
         model_cfg.use_lora = False
+    if args.pretrained:
+        model_cfg.pretrained = args.pretrained.lower() == "true"
 
     set_seed(cfg.get("seed", 42))
     print("[setup] Building dataloaders (may pause briefly if filesystem is cold)...")
