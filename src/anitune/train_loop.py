@@ -83,6 +83,7 @@ def run_train(
     device: torch.device,
     optim_cfg: OptimConfig,
     save_dir: Path,
+    log_fn=None,
 ) -> Dict[str, float]:
     criterion = nn.CrossEntropyLoss()
     optimizer = optim.AdamW(model.parameters(), lr=optim_cfg.lr, weight_decay=optim_cfg.weight_decay)
@@ -97,11 +98,20 @@ def run_train(
     for epoch in range(1, optim_cfg.epochs + 1):
         train_metrics = train_one_epoch(model, train_loader, optimizer, criterion, device, scaler, optim_cfg)
         val_metrics = evaluate(model, val_loader, criterion, device, amp=optim_cfg.amp)
+        epoch_log = {
+            "epoch": epoch,
+            "train_loss": train_metrics["loss"],
+            "train_acc": train_metrics["acc"],
+            "val_loss": val_metrics["loss"],
+            "val_acc": val_metrics["acc"],
+        }
         print(
             f"Epoch {epoch}/{optim_cfg.epochs} | "
             f"train_loss={train_metrics['loss']:.4f} acc={train_metrics['acc']:.4f} | "
             f"val_loss={val_metrics['loss']:.4f} acc={val_metrics['acc']:.4f}"
         )
+        if log_fn:
+            log_fn(epoch_log)
         if val_metrics["acc"] > best_acc:
             best_acc = val_metrics["acc"]
             torch.save({"model": model.state_dict(), "val_acc": best_acc}, save_dir / "best.pt")

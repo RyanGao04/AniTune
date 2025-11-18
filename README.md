@@ -2,10 +2,11 @@
 Robust anime face recognition via ViT fine-tuning with LoRA on iCartoonFace.
 
 ## Quickstart
-1) Create env and install deps:
+1) Create env and install deps (conda + pip):
 ```bash
-python -m venv .venv && source .venv/bin/activate
-python -m pip install -r requirements.txt
+conda env create -f environment.yml  # or: python -m venv .venv && source .venv/bin/activate
+conda activate anitune
+pip install -r requirements.txt
 ```
 2) Prepare data in ImageFolder layout (e.g., `data/personai_icartoonface_rectrain/icartoonface_rectrain/<id>/*.jpg`) and generate manifests:
 ```bash
@@ -18,6 +19,10 @@ python scripts/train.py --config configs/lora_vitb16.yaml --data-root data/perso
 4) Evaluate a checkpoint:
 ```bash
 python scripts/eval.py --config configs/lora_vitb16.yaml --checkpoint runs/lora_vitb16/best.pt --data-root data/personai_icartoonface_rectrain/icartoonface_rectrain
+```
+5) (Optional) Enable Weights & Biases logging:
+```bash
+python scripts/train.py --config configs/lora_vitb16.yaml --data-root data/personai_icartoonface_rectrain/icartoonface_rectrain --wandb --wandb-project AniTune
 ```
 
 ## Project Structure

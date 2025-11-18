@@ -4,6 +4,7 @@ torchvision
 pyyaml
 timm
 tqdm
+wandb
 
 # Optional: experiment tracking / analysis
 pandas
