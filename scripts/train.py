@@ -24,49 +24,28 @@ def parse_args():
     parser.add_argument("--wandb", action="store_true", help="Enable Weights & Biases logging")
     parser.add_argument("--wandb-project", default="AniTune", help="Weights & Biases project name")
     parser.add_argument("--wandb-run-name", default=None, help="Weights & Biases run name")
-    parser.add_argument("--batch-size", type=int, help="Override data.batch_size")
-    parser.add_argument("--num-workers", type=int, help="Override data.num_workers")
-    parser.add_argument("--epochs", type=int, help="Override optim.epochs")
-    parser.add_argument("--pretrained", type=str, choices=["true", "false"], help="Override model.pretrained")
     return parser.parse_args()
 
 
 def main():
     args = parse_args()
     cfg = load_config(args.config)
-    print(f"[setup] Loaded config from {args.config}")
 
     data_cfg = DataConfig(**cfg["data"])
     if args.data_root:
         data_cfg.root = args.data_root
-    if args.batch_size:
-        data_cfg.batch_size = args.batch_size
-    if args.num_workers is not None:
-        data_cfg.num_workers = args.num_workers
-    print(f"[data] Root: {data_cfg.root} | using manifests: {data_cfg.manifest_dir}")
     model_cfg = ModelConfig(**cfg["model"])
     optim_cfg = OptimConfig(**cfg["optim"])
-    if args.epochs is not None:
-        optim_cfg.epochs = args.epochs
 
     if args.no_lora:
         model_cfg.use_lora = False
-    if args.pretrained:
-        model_cfg.pretrained = args.pretrained.lower() == "true"
 
     set_seed(cfg.get("seed", 42))
-    print("[setup] Building dataloaders (may pause briefly if filesystem is cold)...")
-    train_loader, val_loader = build_dataloaders(data_cfg)
-    # ManifestDataset does not nest a dataset attribute; ImageFolder does.
-    if hasattr(train_loader.dataset, "dataset") and hasattr(train_loader.dataset.dataset, "classes"):
-        num_classes = len(train_loader.dataset.dataset.classes)
-    else:
-        num_classes = len(set(label for _, label in train_loader.dataset))
-    model_cfg.num_classes = num_classes
-    if getattr(model_cfg, "img_size", None) is None:
-        model_cfg.img_size = data_cfg.img_size
 
-    print(f"[model] Building model {model_cfg.name} (pretrained={model_cfg.pretrained}, lora={model_cfg.use_lora})")
+    train_loader, val_loader = build_dataloaders(data_cfg)
+    num_classes = len(train_loader.dataset.dataset.classes)
+    model_cfg.num_classes = num_classes
+
     model = build_model(model_cfg)
     if args.head_only:
         freeze_backbone(model, unfreeze_head=True)
@@ -90,8 +69,6 @@ def main():
             name=args.wandb_run_name or cfg.get("run_name", "experiment"),
             config={**cfg, "num_classes": num_classes},
         )
-
-    print(f"[train] Starting training for {optim_cfg.epochs} epochs on {device} (num_classes={num_classes})")
 
     def log_fn(metrics):
         if wandb_run:

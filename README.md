@@ -26,30 +26,6 @@ python scripts/eval.py --config configs/lora_vitb16.yaml --checkpoint runs/lora_
 python scripts/train.py --config configs/lora_vitb16.yaml --data-root data/personai_icartoonface_rectrain/icartoonface_rectrain --wandb --wandb-project AniTune
 ```
 
-## Quick smoke test (small subset)
-- Create small manifests (e.g., 20 IDs, max 10 images each) to validate the pipeline quickly:
-```bash
-python scripts/prepare_icartoonface.py --source data/personai_icartoonface_rectrain/icartoonface_rectrain --output data/icartoonface --val-ratio 0.1 --seed 42 --max-ids 20 --max-per-id 10
-```
-- Then run the smoke config (1 epoch, tiny batch, no pretrained download):
-```bash
-python scripts/train.py --config configs/smoke.yaml --data-root data/personai_icartoonface_rectrain/icartoonface_rectrain
-```
-
-## CPU-friendly tiny model
-- Use a smaller ViT and conservative settings when testing on CPU:
-```bash
-python scripts/train.py --config configs/cpu_tiny.yaml --data-root data/personai_icartoonface_rectrain/icartoonface_rectrain --device cpu --pretrained false --batch-size 4 --num-workers 0 --epochs 1
-```
-This config sets `vit_tiny_patch16_224` with `img_size: 160` to reduce compute; model creation now respects the `img_size` field.
-
-## Apple Silicon (M-series) higher-load test
-- Try an MPS run with a larger model/batch to exercise the GPU/CPU more:
-```bash
-python scripts/train.py --config configs/mps_medium.yaml --data-root data/personai_icartoonface_rectrain/icartoonface_rectrain --device mps --batch-size 64 --num-workers 4 --epochs 3
-```
-If you have cached weights or allow downloads, set `--pretrained true` (or update the config). Adjust batch size/downscale to 32 if you hit memory limits.
-
 ## Project Structure
 - `configs/`: YAML configs for LoRA and full fine-tuning variants.
 - `scripts/`: Entry points for training/eval.

@@ -17,11 +17,6 @@ class DataConfig:
     use_grayscale: bool = False
     manifest_dir: Optional[Path] = None
 
-    def __post_init__(self):
-        self.root = Path(self.root)
-        if self.manifest_dir:
-            self.manifest_dir = Path(self.manifest_dir)
-
 
 def build_transforms(img_size: int, use_grayscale: bool = False):
     channels = 1 if use_grayscale else 3
