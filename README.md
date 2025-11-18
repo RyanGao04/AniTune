@@ -7,7 +7,6 @@ Robust anime face recognition via ViT fine-tuning with LoRA on iCartoonFace.
 conda env create -f environment.yml  # or: python -m venv .venv && source .venv/bin/activate
 conda activate anitune
 pip install -r requirements.txt
-pip install -e .  # install anitune package for clean imports
 ```
 2) Prepare data in ImageFolder layout (e.g., `data/personai_icartoonface_rectrain/icartoonface_rectrain/<id>/*.jpg`) and generate manifests:
 ```bash
