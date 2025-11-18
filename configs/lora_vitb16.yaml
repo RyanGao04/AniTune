@@ -3,12 +3,13 @@ run_name: lora_vitb16
 save_dir: runs
 
 data:
-  root: data/icartoonface/train
+  root: data/personai_icartoonface_rectrain/icartoonface_rectrain
   img_size: 224
   train_split: 0.9
   batch_size: 64
   num_workers: 8
   use_grayscale: false
+  manifest_dir: data/icartoonface/splits
 
 model:
   name: vit_base_patch16_224

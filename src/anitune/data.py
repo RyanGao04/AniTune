@@ -1,9 +1,9 @@
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Tuple
+from typing import Optional, Tuple
 
-import torch
-from torch.utils.data import DataLoader, random_split
+from PIL import Image
+from torch.utils.data import DataLoader, Dataset, random_split
 from torchvision import datasets, transforms
 
 
@@ -15,6 +15,7 @@ class DataConfig:
     batch_size: int = 32
     num_workers: int = 4
     use_grayscale: bool = False
+    manifest_dir: Optional[Path] = None
 
 
 def build_transforms(img_size: int, use_grayscale: bool = False):
@@ -43,15 +44,43 @@ def build_transforms(img_size: int, use_grayscale: bool = False):
     return train_tfms, eval_tfms
 
 
+class ManifestDataset(Dataset):
+    """Dataset that loads images based on a manifest file with `relative_path label` per line."""
+
+    def __init__(self, root: Path, manifest: Path, transform):
+        self.root = root
+        self.transform = transform
+        self.entries = []
+        with open(manifest, "r") as f:
+            for line in f:
+                rel_path, label = line.strip().split()
+                self.entries.append((rel_path, int(label)))
+
+    def __len__(self):
+        return len(self.entries)
+
+    def __getitem__(self, idx):
+        rel_path, label = self.entries[idx]
+        img_path = self.root / rel_path
+        image = Image.open(img_path).convert("RGB")
+        if self.transform:
+            image = self.transform(image)
+        return image, label
+
+
 def build_dataloaders(cfg: DataConfig) -> Tuple[DataLoader, DataLoader]:
     train_tfms, eval_tfms = build_transforms(cfg.img_size, cfg.use_grayscale)
 
-    dataset = datasets.ImageFolder(cfg.root, transform=train_tfms)
-    n_train = int(len(dataset) * cfg.train_split)
-    n_val = len(dataset) - n_train
-    train_ds, val_ds = random_split(dataset, [n_train, n_val])
-    # Apply eval transforms to val subset
-    val_ds.dataset.transform = eval_tfms
+    if cfg.manifest_dir and (cfg.manifest_dir / "train.txt").exists():
+        train_ds = ManifestDataset(cfg.root, cfg.manifest_dir / "train.txt", train_tfms)
+        val_ds = ManifestDataset(cfg.root, cfg.manifest_dir / "val.txt", eval_tfms)
+    else:
+        dataset = datasets.ImageFolder(cfg.root, transform=train_tfms)
+        n_train = int(len(dataset) * cfg.train_split)
+        n_val = len(dataset) - n_train
+        train_ds, val_ds = random_split(dataset, [n_train, n_val])
+        # Apply eval transforms to val subset
+        val_ds.dataset.transform = eval_tfms
 
     train_loader = DataLoader(
         train_ds,

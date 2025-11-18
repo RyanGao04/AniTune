@@ -10,6 +10,9 @@ data/
 runs/
 outputs/
 checkpoints/
+*.zip
+personai_icartoonface_rectest.zip
+personai_icartoonface_rectrain.zip
 
 # Notebooks
 *.ipynb_checkpoints
@@ -18,3 +21,6 @@ checkpoints/
 .idea/
 .vscode/
 .DS_Store
+
+# Agent
+AGENTS.md
