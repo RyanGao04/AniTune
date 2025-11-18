@@ -1,8 +1,12 @@
 #!/usr/bin/env python
 import argparse
+import sys
 from pathlib import Path
 
 import torch
+
+ROOT = Path(__file__).resolve().parent.parent
+sys.path.append(str(ROOT / "src"))
 
 from anitune.data import DataConfig, build_dataloaders
 from anitune.models import ModelConfig, build_model, freeze_backbone, enable_full_finetune
