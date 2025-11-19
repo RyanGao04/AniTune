@@ -42,6 +42,15 @@ PYTHONPATH=src python scripts/eval.py \
   --checkpoint runs/lora_vitb16/best.pt \
   --data-root data/personai_icartoonface_rectrain/icartoonface_rectrain
 ```
+To score against the official recognition test split (`personai_icartoonface_rectest`), point the evaluator at the test directory/manifest:
+```bash
+PYTHONPATH=src python scripts/eval.py \
+  --config configs/lora_vitb16.yaml \
+  --checkpoint runs/lora_vitb16/best.pt \
+  --eval-split test \
+  --test-root data/personai_icartoonface_rectest/icartoonface_rectest
+# optionally add: --test-manifest data/icartoonface/splits/test.txt
+```
 
 ## Project Structure
 - `configs/`: YAML configs (LoRA and full FT).

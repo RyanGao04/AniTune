@@ -108,3 +108,37 @@ def build_dataloaders(cfg: DataConfig) -> Tuple[DataLoader, DataLoader]:
         pin_memory=True,
     )
     return train_loader, val_loader
+
+
+def build_eval_loader(
+    cfg: DataConfig,
+    *,
+    root: Optional[Path] = None,
+    manifest: Optional[Path] = None,
+) -> DataLoader:
+    """Build a deterministic eval loader (val/test) with optional overrides."""
+    _, eval_tfms = build_transforms(cfg.img_size, cfg.use_grayscale)
+    data_root = Path(root) if root else cfg.root
+
+    manifest_path = None
+    if manifest:
+        manifest_path = Path(manifest)
+        if manifest_path.is_dir():
+            manifest_path = manifest_path / "test.txt"
+    elif cfg.manifest_dir:
+        candidate = cfg.manifest_dir / "test.txt"
+        if candidate.exists():
+            manifest_path = candidate
+
+    if manifest_path and manifest_path.exists():
+        dataset = ManifestDataset(data_root, manifest_path, eval_tfms)
+    else:
+        dataset = datasets.ImageFolder(data_root, transform=eval_tfms)
+
+    return DataLoader(
+        dataset,
+        batch_size=cfg.batch_size,
+        shuffle=False,
+        num_workers=cfg.num_workers,
+        pin_memory=True,
+    )
