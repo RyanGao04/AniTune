@@ -38,15 +38,8 @@ def main():
     train_lines, val_lines, test_lines = [], [], []
     hist = Counter()
     skipped = 0
-    # Mapping: personid (folder name) -> label_idx (numeric label)
-    personid_to_label = {}
-    label_to_personid = {}
 
     for label_idx, cls_dir in enumerate(identities):
-        personid = cls_dir.name  # Original personid (folder name)
-        personid_to_label[personid] = label_idx
-        label_to_personid[label_idx] = personid
-        
         images = sorted(p for p in cls_dir.glob("*.jpg"))
         if not images:
             skipped += 1
@@ -106,14 +99,9 @@ def main():
         "test_images": len(test_lines),
     }
     (manifest_dir / "stats.json").write_text(json.dumps(stats, indent=2))
-    
-    # Save personid mappings for interpretability
-    (manifest_dir / "personid_to_label.json").write_text(json.dumps(personid_to_label, indent=2))
-    (manifest_dir / "label_to_personid.json").write_text(json.dumps(label_to_personid, indent=2))
 
     print(json.dumps(stats, indent=2))
     print(f"Wrote manifests to {manifest_dir}")
-    print(f"Saved personid mappings: personid_to_label.json, label_to_personid.json")
 
 
 if __name__ == "__main__":
