@@ -41,9 +41,7 @@ def main():
 
     set_seed(cfg.get("seed", 42))
 
-    loaders = build_dataloaders(data_cfg)
-    train_loader, val_loader = loaders[0], loaders[1]
-    # Note: test_loader (if exists) is ignored during training
+    train_loader, val_loader = build_dataloaders(data_cfg)
     train_ds = train_loader.dataset
     base_ds = getattr(train_ds, "dataset", train_ds)
     if hasattr(base_ds, "classes"):
