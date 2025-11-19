@@ -1,6 +1,6 @@
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Optional, Tuple
+from typing import Optional, Tuple, Union
 
 from PIL import Image
 from torch.utils.data import DataLoader, Dataset, random_split
@@ -79,12 +79,25 @@ class ManifestDataset(Dataset):
         return image, label
 
 
-def build_dataloaders(cfg: DataConfig) -> Tuple[DataLoader, DataLoader]:
+def build_dataloaders(
+    cfg: DataConfig,
+) -> Union[Tuple[DataLoader, DataLoader], Tuple[DataLoader, DataLoader, DataLoader]]:
+    """Build data loaders for training, validation, and optionally test sets.
+
+    Returns:
+        If test.txt exists: (train_loader, val_loader, test_loader)
+        Otherwise: (train_loader, val_loader)
+    """
     train_tfms, eval_tfms = build_transforms(cfg.img_size, cfg.use_grayscale)
 
+    has_test = False
     if cfg.manifest_dir and (cfg.manifest_dir / "train.txt").exists():
         train_ds = ManifestDataset(cfg.root, cfg.manifest_dir / "train.txt", train_tfms)
         val_ds = ManifestDataset(cfg.root, cfg.manifest_dir / "val.txt", eval_tfms)
+        # Check if test set exists
+        if (cfg.manifest_dir / "test.txt").exists():
+            test_ds = ManifestDataset(cfg.root, cfg.manifest_dir / "test.txt", eval_tfms)
+            has_test = True
     else:
         dataset = datasets.ImageFolder(cfg.root, transform=train_tfms)
         n_train = int(len(dataset) * cfg.train_split)
@@ -107,4 +120,15 @@ def build_dataloaders(cfg: DataConfig) -> Tuple[DataLoader, DataLoader]:
         num_workers=cfg.num_workers,
         pin_memory=True,
     )
-    return train_loader, val_loader
+
+    if has_test:
+        test_loader = DataLoader(
+            test_ds,
+            batch_size=cfg.batch_size,
+            shuffle=False,
+            num_workers=cfg.num_workers,
+            pin_memory=True,
+        )
+        return train_loader, val_loader, test_loader
+    else:
+        return train_loader, val_loader
