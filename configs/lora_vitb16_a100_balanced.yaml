@@ -1,0 +1,34 @@
+# A100优化配置 - 平衡版（推荐）
+# 适用场景：性能和速度的最佳平衡点
+# 预计训练时间：~1小时/10 epochs
+# 显存占用：~25-28GB
+
+seed: 42
+run_name: lora_vitb16_a100_balanced
+save_dir: runs
+
+data:
+  root: data/personai_icartoonface_rectrain/icartoonface_rectrain
+  img_size: 224
+  train_split: 0.9
+  batch_size: 144        # 平衡的batch size
+  num_workers: 12
+  use_grayscale: false
+  manifest_dir: data/icartoonface/splits
+
+model:
+  name: vit_base_patch16_224
+  num_classes: 5013
+  pretrained: true
+  use_lora: true
+  lora_rank: 12          # 中等rank，在速度和性能间取得平衡
+  lora_alpha: 24
+  lora_dropout: 0.08
+
+optim:
+  lr: 2.2e-4             # 针对batch size调整
+  weight_decay: 0.05
+  epochs: 12             # 略微增加训练轮数
+  amp: true
+  log_interval: 40
+

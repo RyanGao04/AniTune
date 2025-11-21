@@ -1,0 +1,21 @@
+2025-11-21 04:59:42,897 INFO    MainThread:23290 [wandb_setup.py:_flush():80] Current SDK version is 0.23.0
+2025-11-21 04:59:42,897 INFO    MainThread:23290 [wandb_setup.py:_flush():80] Configure stats pid to 23290
+2025-11-21 04:59:42,897 INFO    MainThread:23290 [wandb_setup.py:_flush():80] Loading settings from /root/.config/wandb/settings
+2025-11-21 04:59:42,897 INFO    MainThread:23290 [wandb_setup.py:_flush():80] Loading settings from /workspace/AniTune/wandb/settings
+2025-11-21 04:59:42,897 INFO    MainThread:23290 [wandb_setup.py:_flush():80] Loading settings from environment variables
+2025-11-21 04:59:42,897 INFO    MainThread:23290 [wandb_init.py:setup_run_log_directory():713] Logging user logs to /workspace/AniTune/wandb/run-20251121_045942-tlzuc518/logs/debug.log
+2025-11-21 04:59:42,898 INFO    MainThread:23290 [wandb_init.py:setup_run_log_directory():714] Logging internal logs to /workspace/AniTune/wandb/run-20251121_045942-tlzuc518/logs/debug-internal.log
+2025-11-21 04:59:42,898 INFO    MainThread:23290 [wandb_init.py:init():840] calling init triggers
+2025-11-21 04:59:42,898 INFO    MainThread:23290 [wandb_init.py:init():845] wandb.init called with sweep_config: {}
+config: {'seed': 42, 'run_name': 'lora_vitb16_a100_balanced', 'save_dir': 'runs', 'data': {'root': 'data/personai_icartoonface_rectrain/icartoonface_rectrain', 'img_size': 224, 'train_split': 0.9, 'batch_size': 144, 'num_workers': 16, 'use_grayscale': False, 'manifest_dir': 'data/icartoonface/splits'}, 'model': {'name': 'vit_base_patch16_224', 'num_classes': 5013, 'pretrained': True, 'use_lora': True, 'lora_rank': 12, 'lora_alpha': 24, 'lora_dropout': 0.08}, 'optim': {'lr': 0.00022, 'weight_decay': 0.05, 'epochs': 12, 'amp': True, 'log_interval': 40}, 'num_classes': 5013, '_wandb': {}}
+2025-11-21 04:59:42,898 INFO    MainThread:23290 [wandb_init.py:init():888] starting backend
+2025-11-21 04:59:43,129 INFO    MainThread:23290 [wandb_init.py:init():891] sending inform_init request
+2025-11-21 04:59:43,134 INFO    MainThread:23290 [wandb_init.py:init():899] backend started and connected
+2025-11-21 04:59:43,136 INFO    MainThread:23290 [wandb_init.py:init():969] updated telemetry
+2025-11-21 04:59:43,141 INFO    MainThread:23290 [wandb_init.py:init():993] communicating run to backend with 90.0 second timeout
+2025-11-21 04:59:43,500 INFO    MainThread:23290 [wandb_init.py:init():1040] starting run threads in backend
+2025-11-21 04:59:43,583 INFO    MainThread:23290 [wandb_run.py:_console_start():2504] atexit reg
+2025-11-21 04:59:43,583 INFO    MainThread:23290 [wandb_run.py:_redirect():2352] redirect: wrap_raw
+2025-11-21 04:59:43,583 INFO    MainThread:23290 [wandb_run.py:_redirect():2421] Wrapping output streams.
+2025-11-21 04:59:43,583 INFO    MainThread:23290 [wandb_run.py:_redirect():2444] Redirects installed.
+2025-11-21 04:59:43,586 INFO    MainThread:23290 [wandb_init.py:init():1080] run started, returning control to user process

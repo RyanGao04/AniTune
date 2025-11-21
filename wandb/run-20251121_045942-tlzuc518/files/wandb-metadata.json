@@ -1,0 +1,48 @@
+{
+  "os": "Linux-6.5.0-1025-gcp-x86_64-with-glibc2.35",
+  "python": "CPython 3.10.19",
+  "startedAt": "2025-11-21T04:59:42.895586Z",
+  "args": [
+    "--config",
+    "configs/lora_vitb16_a100_balanced.yaml",
+    "--data-root",
+    "data/personai_icartoonface_rec/personai_icartoonface_rectrain/icartoonface_rectrain",
+    "--wandb",
+    "--wandb-project",
+    "AniTune"
+  ],
+  "program": "/workspace/AniTune/scripts/train.py",
+  "codePath": "scripts/train.py",
+  "codePathLocal": "scripts/train.py",
+  "git": {
+    "remote": "https://github.com/RyanGao04/AniTune.git"
+  },
+  "email": "tingtingdu06@gmail.com",
+  "root": "/workspace/AniTune",
+  "host": "019f55e23a66",
+  "executable": "/venv/anitune/bin/python",
+  "cpu_count": 6,
+  "cpu_count_logical": 12,
+  "gpu": "NVIDIA A100-SXM4-40GB",
+  "gpu_count": 1,
+  "disk": {
+    "/": {
+      "total": "234075717632",
+      "used": "54980829184"
+    }
+  },
+  "memory": {
+    "total": "89610625024"
+  },
+  "gpu_nvidia": [
+    {
+      "name": "NVIDIA A100-SXM4-40GB",
+      "memoryTotal": "42949672960",
+      "cudaCores": 6912,
+      "architecture": "Ampere",
+      "uuid": "GPU-d4adbcfb-1f0d-c5c6-ba07-4aa1fcd6702a"
+    }
+  ],
+  "cudaVersion": "12.4",
+  "writerId": "o463tiuy2uc0bx2j9ir1lrbgwav7nhed"
+}

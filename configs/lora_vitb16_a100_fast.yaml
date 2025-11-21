@@ -1,0 +1,34 @@
+# A100优化配置 - 快速训练版
+# 适用场景：快速迭代实验，缩短训练时间
+# 预计训练时间：~45-60分钟/10 epochs
+# 显存占用：~28-32GB
+
+seed: 42
+run_name: lora_vitb16_a100_fast
+save_dir: runs
+
+data:
+  root: data/personai_icartoonface_rectrain/icartoonface_rectrain
+  img_size: 224
+  train_split: 0.9
+  batch_size: 160        # 从64增加到160，充分利用A100显存
+  num_workers: 16        # 从8增加到16，加速数据加载
+  use_grayscale: false
+  manifest_dir: data/icartoonface/splits
+
+model:
+  name: vit_base_patch16_224
+  num_classes: 5013
+  pretrained: true
+  use_lora: true
+  lora_rank: 8           # 保持rank=8，平衡速度和性能
+  lora_alpha: 16
+  lora_dropout: 0.05
+
+optim:
+  lr: 2.5e-4             # 略微提高学习率以适应大batch size
+  weight_decay: 0.05
+  epochs: 10
+  amp: true              # 混合精度训练，必须启用
+  log_interval: 30       # 更频繁的日志输出
+
