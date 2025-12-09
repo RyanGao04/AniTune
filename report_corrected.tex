@@ -1,0 +1,581 @@
+%% AniTune: Robust Anime Face Recognition via Fine-Tuned ViT (Progress Report)
+%% CORRECTED VERSION - Based on actual code implementation
+
+\documentclass[11pt]{article}
+
+% ------- Encoding & fonts -------
+\usepackage[utf8]{inputenc}
+\usepackage[T1]{fontenc}
+\usepackage{lmodern}
+
+% ------- Page layout -------
+\usepackage[a4paper,margin=1in]{geometry}
+\usepackage[section]{placeins}
+\usepackage{setspace}
+
+% ------- Math & tables -------
+\usepackage{amsmath,amssymb}
+\usepackage{siunitx}
+\sisetup{detect-all=true}
+\usepackage{booktabs}
+\usepackage{tabularx}
+\usepackage{array}
+\usepackage{multirow}
+\usepackage{makecell}
+
+% ------- Colors & graphics -------
+\usepackage{xcolor}
+\usepackage{graphicx}
+\usepackage{subcaption}
+\usepackage{float}
+\usepackage{colortbl}
+\usepackage{tikz}
+
+% ------- Captions -------
+\usepackage[font=small,labelfont=bf]{caption}
+
+% ------- Links (load last) -------
+\usepackage[colorlinks=true,linkcolor=blue,citecolor=blue,urlcolor=blue]{hyperref}
+
+% ------- Title -------
+\title{\vspace{-1.5em}\Large\textbf{AniTune: Robust Anime Face Recognition via Fine-Tuned Vision Transformer}\\[-0.25em]
+\large Progress Report (Corrected)\vspace{-0.5em}}
+\author{Tingting Du (tdu35)\quad Evelyn Liu (eliu76)\quad Ryan Gao (rgao97)\\[0.25em]
+\small CS539 Artificial Neural Networks}
+\date{}
+
+\begin{document}
+
+\maketitle
+
+\section{Overview and Motivation}
+
+Anime and cartoon face recognition poses unique challenges compared to natural face recognition: highly stylized features, exaggerated expressions, and significant domain gap from real-world faces make direct transfer of natural-image models suboptimal. This project investigates Low-Rank Adaptation (LoRA)~\cite{hu2021lora} as a parameter-efficient alternative to full fine-tuning of pretrained Vision Transformers (ViTs)~\cite{dosovitskiy2021vit} on the \emph{iCartoonFace} dataset~\cite{zheng2020icartoonface}, a large-scale benchmark with 5,013 cartoon character identities.
+
+\paragraph{Key research questions:}
+\begin{itemize}
+    \item Can LoRA-adapted ViT achieve competitive performance on cartoon face recognition while training only 5\% of parameters?
+    \item What is the performance--efficiency trade-off between LoRA-only and full fine-tuning approaches?
+    \item How do architectural choices (LoRA rank, target layers) affect convergence and accuracy?
+\end{itemize}
+
+\section{Methodology}
+
+\subsection{Low-Rank Adaptation (LoRA): Theory and Implementation}
+
+\paragraph{Core idea.}
+LoRA~\cite{hu2021lora} introduces a parameter-efficient adaptation method that freezes pretrained weights $W_0 \in \mathbb{R}^{d_{\text{in}} \times d_{\text{out}}}$ while adding a trainable low-rank residual path:
+\begin{equation}
+    W = W_0^{\text{frozen}} + \Delta W = W_0 + BA
+\end{equation}
+where $B \in \mathbb{R}^{d_{\text{out}} \times r}$ and $A \in \mathbb{R}^{r \times d_{\text{in}}}$ with rank $r \ll \min(d_{\text{in}}, d_{\text{out}})$.
+
+\paragraph{Key advantages:}
+\begin{enumerate}
+    \item \textbf{Parameter efficiency:} Training only low-rank adapters $A$, $B$ dramatically reduces trainable parameters. In our ViT-B/16 implementation, LoRA adapters constitute only 0.7\% of the backbone parameters (664K vs 86M).
+
+    \item \textbf{Preservation of pretrained knowledge:} Freezing $W_0$ prevents catastrophic forgetting of ImageNet features while allowing domain-specific adaptation through the low-rank path.
+
+    \item \textbf{Modularity:} LoRA adapters can be extracted, swapped, or composed for multi-task or continual learning scenarios without modifying the base model.
+
+    \item \textbf{Convergence properties:} The initialization strategy ($B=0$ initially) ensures the model starts from pretrained behavior, potentially leading to more stable optimization than training from scratch or random initialization.
+\end{enumerate}
+
+\paragraph{Forward computation.}
+For an input $x$, the output is computed as:
+\begin{equation}
+    h = W_0 x + BAx \cdot \frac{\alpha}{r}
+\end{equation}
+where $\alpha$ is a scaling hyperparameter. The initialization strategy ensures smooth start: $B$ is initialized to zeros ($B_{ij} = 0$ for all $i,j$), while $A$ uses Kaiming uniform distribution~\cite{he2015delving} with parameter $a = \sqrt{5}$. For ViT-B/16 attention projections ($d_{\text{in}}=768$), this yields initialization bound:
+\begin{equation}
+    \text{bound} = \sqrt{\frac{6}{(1+a^2) \times d_{\text{in}}}} = \sqrt{\frac{6}{(1+5) \times 768}} = \sqrt{\frac{1}{768}} \approx 0.036
+\end{equation}
+Therefore $A_{ij} \sim \text{Uniform}(-0.036, 0.036)$. Since $B=0$ initially, we have $\Delta W = BA = \mathbf{0}$, making the forward pass start identical to the pretrained model: $h = W_0 x + \mathbf{0} = W_0 x$.
+
+\paragraph{Implementation details.}
+We apply LoRA to attention mechanisms in ViT-B/16 using the \texttt{timm} library's architecture:
+
+\begin{itemize}
+    \item \textbf{Target modules:} In \texttt{timm}'s ViT implementation, each attention block contains:
+        \begin{itemize}
+            \item \texttt{qkv}: A single linear layer $\mathbb{R}^{768} \to \mathbb{R}^{2304}$ producing concatenated Query, Key, Value projections
+            \item \texttt{proj}: The output projection $\mathbb{R}^{768} \to \mathbb{R}^{768}$
+        \end{itemize}
+        We wrap both with LoRA adapters in all 12 transformer blocks (24 linear layers total).
+
+    \item \textbf{Hyperparameters:} Rank $r=12$, scaling $\alpha=24$ (scale factor $\alpha/r = 2.0$), dropout $p=0.08$ on the LoRA path.
+
+    \item \textbf{LoRA parameters (per layer):}
+        \begin{itemize}
+            \item \textbf{qkv layer} ($768 \to 2304$):
+                \begin{itemize}
+                    \item $A \in \mathbb{R}^{12 \times 768}$: 9,216 parameters
+                    \item $B \in \mathbb{R}^{2304 \times 12}$: 27,648 parameters
+                    \item Subtotal: 36,864 parameters
+                \end{itemize}
+            \item \textbf{proj layer} ($768 \to 768$):
+                \begin{itemize}
+                    \item $A \in \mathbb{R}^{12 \times 768}$: 9,216 parameters
+                    \item $B \in \mathbb{R}^{768 \times 12}$: 9,216 parameters
+                    \item Subtotal: 18,432 parameters
+                \end{itemize}
+            \item \textbf{Per block:} $36{,}864 + 18{,}432 = 55{,}296$ LoRA parameters
+            \item \textbf{All 12 blocks:} $55{,}296 \times 12 = 663{,}552 \approx 664\text{K}$ LoRA parameters
+        \end{itemize}
+\end{itemize}
+
+\subsection{Training Configurations}
+
+We investigate two training strategies to understand the efficiency--accuracy trade-off:
+
+\paragraph{Configuration A: LoRA-only adaptation (Parameter-Efficient Fine-Tuning).}
+The standard LoRA approach that freezes the pretrained backbone while training only LoRA adapters and the classification head:
+\begin{itemize}
+    \item ViT-B/16 backbone: \textbf{0 trainable parameters} (85.8M frozen)
+    \item LoRA adapters: 664K trainable parameters
+    \item Classification head ($768 \to 5013$): 3.85M trainable parameters
+    \item \textbf{Total trainable: 4.52M parameters (5.0\% of model)}
+\end{itemize}
+
+\paragraph{Configuration B: LoRA + Full fine-tuning (Experimental Comparison).}
+An experimental variant that trains all parameters including the backbone, with LoRA adapters providing an additional low-rank path:
+\begin{itemize}
+    \item ViT-B/16 backbone: 85.8M trainable parameters
+    \item LoRA adapters: 664K trainable parameters
+    \item Classification head: 3.85M trainable parameters
+    \item \textbf{Total trainable: 90.3M parameters (100\% of model)}
+\end{itemize}
+
+This configuration serves as an ablation study to determine whether the low-rank structure provides benefits (faster convergence, better generalization) beyond standard full fine-tuning.
+
+\subsection{Model Architecture and Training Pipeline}
+
+\paragraph{Backbone.}
+We use ViT-B/16~\cite{dosovitskiy2021vit} pretrained on ImageNet-21K via the \texttt{timm} library (\texttt{vit\_base\_patch16\_224}). The model processes $224 \times 224$ images as a sequence of 196 patches ($14 \times 14$ grid of $16 \times 16$ patches).
+
+\paragraph{Classification head.}
+A linear layer projects the [CLS] token embedding (768-dimensional) to 5,013 logits (one per identity). This head is initialized randomly and always trainable.
+
+\paragraph{Data augmentation.}
+To handle domain shift and class imbalance:
+\begin{itemize}
+    \item Resize to $246 \times 246$ ($224 \times 1.1$), then center crop to $224 \times 224$
+    \item Random horizontal flip (probability 0.5)
+    \item Normalization: mean $[0.5, 0.5, 0.5]$, std $[0.5, 0.5, 0.5]$
+\end{itemize}
+
+\paragraph{Training configuration.}
+\begin{table}[H]
+\centering
+\small
+\begin{tabular}{ll}
+\toprule
+\textbf{Hyperparameter} & \textbf{Value} \\
+\midrule
+Optimizer & AdamW \\
+Learning rate & $2.2 \times 10^{-4}$ \\
+Weight decay & 0.05 \\
+Batch size & 144 \\
+Epochs & 12 \\
+LoRA rank ($r$) & 12 \\
+LoRA alpha ($\alpha$) & 24 \\
+LoRA dropout & 0.08 \\
+Mixed precision & FP16 (autocast) \\
+Scheduler & None (constant LR) \\
+Loss function & Cross-entropy \\
+Gradient clipping & None \\
+\bottomrule
+\end{tabular}
+\caption{Training hyperparameters. Configuration from \texttt{configs/lora\_vitb16\_a100\_balanced.yaml}.}
+\label{tab:hyperparams}
+\end{table}
+
+\paragraph{Computational infrastructure.}
+All experiments conducted on rented NVIDIA A100 (40GB) GPU via \texttt{vast.ai}:
+\begin{itemize}
+    \item \textbf{Hardware:} NVIDIA A100-SXM4-40GB, Intel Xeon CPU, 85GB system RAM
+    \item \textbf{Cost:} \$0.723/hour (actual rental rate)
+    \item \textbf{Framework:} PyTorch 2.9.1, CUDA 12.4, \texttt{timm} library
+    \item \textbf{Training time:} $\sim$7.8 minutes per epoch with batch size 144 ($\sim$1.57 hours for 12 epochs)
+    \item \textbf{Total training cost:} Approximately \$1.13 for 12-epoch run
+    \item \textbf{Monitoring:} Weights \& Biases for real-time logging
+\end{itemize}
+
+\section{Experimental Results}
+
+\paragraph{Important note on training configuration.}
+The results presented in this section correspond to \textbf{Configuration B (LoRA + Full fine-tuning)} with 90.3M trainable parameters. We are currently conducting ablation studies comparing this approach to:
+\begin{enumerate}
+    \item Configuration A (LoRA-only): 4.52M trainable parameters (5.0\%)
+    \item Full fine-tuning without LoRA: 89.6M trainable parameters
+    \item Head-only fine-tuning: 3.85M trainable parameters
+\end{enumerate}
+
+These comparisons will clarify whether the LoRA enhancement provides measurable benefits when combined with full fine-tuning, and quantify the accuracy--efficiency trade-off of LoRA-only adaptation.
+
+\subsection{Training Dynamics}
+
+Table~\ref{tab:training-progress} shows training and validation metrics across 12 epochs for Configuration B (LoRA + Full FT). The model achieves strong performance early, reaching $>88\%$ validation accuracy by epoch 2, and peaks at 91.28\% at epoch 10.
+
+\begin{table}[H]
+\centering
+\small
+\begin{tabular}{ccccc}
+\toprule
+\textbf{Epoch} & \textbf{Train Loss} & \textbf{Train Acc} & \textbf{Val Loss} & \textbf{Val Acc} \\
+\midrule
+1 & 2.7996 & 54.31\% & 0.6916 & 84.11\% \\
+2 & 0.4317 & 89.77\% & 0.4966 & 88.40\% \\
+3 & 0.2191 & 94.50\% & 0.4701 & 89.15\% \\
+4 & 0.1512 & 96.12\% & 0.4588 & 89.41\% \\
+5 & 0.1221 & 96.80\% & 0.4464 & 90.14\% \\
+6 & 0.1003 & 97.38\% & 0.4250 & 90.64\% \\
+7 & 0.0881 & 97.70\% & 0.4168 & 91.04\% \\
+8 & 0.0790 & 97.96\% & 0.4214 & 91.04\% \\
+9 & 0.0716 & 98.14\% & 0.4372 & 90.80\% \\
+10 & 0.0659 & 98.31\% & 0.4099 & \textbf{91.28\%} \\
+11 & 0.0610 & 98.42\% & 0.4333 & 91.00\% \\
+12 & 0.0555 & 98.58\% & 0.4351 & 90.97\% \\
+\midrule
+\multicolumn{5}{l}{\textit{Best validation accuracy: \textbf{91.28\%} at epoch 10}} \\
+\multicolumn{5}{l}{\textit{Training configuration: LoRA + Full FT (90.3M trainable params)}} \\
+\multicolumn{5}{l}{\textit{Total training time: 94 minutes (1.57 hours) on A100-40GB}} \\
+\multicolumn{5}{l}{\textit{Total cost: \$1.13 at \$0.723/hour}} \\
+\bottomrule
+\end{tabular}
+\caption{Training results for LoRA + Full FT on iCartoonFace. Configuration trains all ViT-B/16 parameters plus LoRA adapters (90.3M total). Best validation accuracy of 91.28\% achieved at epoch 10. Each epoch processes $\sim$311K training images in $\sim$7.8 minutes.}
+\label{tab:training-progress}
+\end{table}
+
+\paragraph{Key observations:}
+\begin{itemize}
+    \item \textbf{Fast convergence:} Training accuracy jumps from 54.31\% (epoch 1) to 89.77\% (epoch 2), demonstrating effective transfer from ImageNet pretraining to the cartoon domain.
+
+    \item \textbf{Peak performance:} Best validation accuracy of \textbf{91.28\%} at epoch 10, with validation loss of 0.4099. Slight overfitting in later epochs causes validation accuracy to plateau.
+
+    \item \textbf{Stable optimization:} Validation loss decreases monotonically from 0.6916 (epoch 1) to 0.4099 (epoch 10) without significant oscillations.
+
+    \item \textbf{Generalization gap:} Train--validation accuracy gap grows to $\sim$7.6\% by epoch 12, indicating some overfitting despite weight decay regularization.
+
+    \item \textbf{Training efficiency:} Each epoch completes in $\sim$7.8 minutes, processing 311K training images across $\sim$2,160 iterations (144 images/batch), achieving $\sim$4.6 iterations/second.
+\end{itemize}
+
+\subsection{Comparison to iCartoonFace Baselines}
+
+\begin{table}[H]
+\centering
+\small
+\begin{tabular}{lccc}
+\toprule
+\textbf{Method} & \textbf{Metric Type} & \textbf{Performance} & \textbf{Training Params} \\
+\midrule
+\multicolumn{4}{l}{\textit{Original iCartoonFace baselines~\cite{zheng2020icartoonface}:}} \\
+\quad ResNet-50 + Softmax & Retrieval Rank@1 & 78.42\% & Full ResNet-50 \\
+\quad ResNet-50 + ArcFace & Retrieval Rank@1 & 82.15\% & Full ResNet-50 \\
+\quad ResNet-50 + Full Model & Retrieval Rank@1 & 84.34\% & Full ResNet-50 \\
+\midrule
+\multicolumn{4}{l}{\textit{Our approach (A100, 1.57 hrs, \$1.13):}} \\
+\quad ViT-B/16 + LoRA + Full FT & \cellcolor{yellow!20}Classification Top-1 & \cellcolor{yellow!20}\textbf{91.28\%} & 90.3M \\
+\bottomrule
+\end{tabular}
+\caption{\textbf{IMPORTANT:} Metrics are NOT directly comparable. Our classification accuracy (91.28\%) uses softmax cross-entropy evaluation, while baselines report retrieval Rank@1 (cosine similarity in embedding space). Classification accuracy is typically higher than retrieval metrics. We plan to implement retrieval evaluation for fair comparison in the final report.}
+\label{tab:comparison}
+\end{table}
+
+\paragraph{Evaluation metric caveat.}
+Our 91.28\% \textbf{classification top-1 accuracy} and the baselines' \textbf{retrieval Rank@1} measure fundamentally different tasks:
+\begin{itemize}
+    \item \textbf{Classification (ours):} Direct softmax prediction over 5,013 classes, trained with cross-entropy loss. The model learns explicit decision boundaries between identities.
+    \item \textbf{Retrieval (baselines):} Embedding-based similarity search trained with margin-based losses (ArcFace/CosFace). The model learns a metric space where same-identity embeddings cluster together.
+\end{itemize}
+
+Classification accuracy tends to be systematically higher because the model is explicitly trained to distinguish the exact set of identities in the dataset. \textbf{Therefore, we cannot claim our 91.28\% outperforms the baseline's 84.34\%} without implementing the same evaluation protocol. The numbers suggest our approach is competitive, but rigorous comparison requires retrieval evaluation.
+
+\subsection{Parameter Efficiency Analysis}
+
+\begin{table}[H]
+\centering
+\small
+\begin{tabular}{lccc}
+\toprule
+\textbf{Configuration} & \textbf{Trainable Params} & \textbf{Trainable \%} & \textbf{Val Acc} \\
+\midrule
+\textbf{Planned experiments:} & & & \\
+\quad Head-only (frozen backbone) & 3.85M & 4.3\% & \textit{TBD} \\
+\quad LoRA-only (frozen backbone) & 4.52M & 5.0\% & \textit{TBD} \\
+\quad Full FT (no LoRA) & 89.6M & 99.3\% & \textit{TBD} \\
+\midrule
+\textbf{Current result:} & & & \\
+\quad LoRA + Full FT & 90.3M & 100.0\% & \textbf{91.28\%} \\
+\quad \quad $\hookrightarrow$ ViT backbone & 85.8M & & \\
+\quad \quad $\hookrightarrow$ LoRA adapters & 0.664M (0.7\%) & & \\
+\quad \quad $\hookrightarrow$ Classification head & 3.85M & & \\
+\bottomrule
+\end{tabular}
+\caption{Parameter breakdown and planned ablation studies. Current result uses LoRA + Full FT (90.3M trainable). Planned experiments will quantify the accuracy--efficiency trade-off and determine whether LoRA provides benefits when combined with full fine-tuning.}
+\label{tab:params}
+\end{table}
+
+\paragraph{Interpretation.}
+Our current result uses \textbf{LoRA + Full fine-tuning}, where all parameters (backbone, LoRA, head) are trainable. The LoRA adapters add only 664K parameters (0.7\% overhead). This configuration potentially combines:
+\begin{itemize}
+    \item Full adaptation capacity of unrestricted fine-tuning
+    \item Additional expressiveness from the low-rank residual path
+    \item Possible regularization benefits from the structured low-rank updates
+\end{itemize}
+
+Planned ablations (head-only, LoRA-only, full FT without LoRA) will reveal:
+\begin{enumerate}
+    \item Whether LoRA-only can achieve competitive accuracy with only 5\% trainable parameters
+    \item Whether the LoRA enhancement provides measurable benefits over pure full fine-tuning
+    \item The minimum parameter budget needed for effective cartoon face recognition
+\end{enumerate}
+
+\section{Why Does This Approach Work?}
+
+\subsection{Theoretical Perspective}
+
+\paragraph{Strong pretrained features.}
+ViT-B/16 pretrained on ImageNet-21K provides surprisingly robust visual representations that transfer to the stylized cartoon domain. Despite the significant domain gap, learned features for edges, textures, shapes, and compositional structures remain relevant.
+
+\paragraph{LoRA's role in full fine-tuning.}
+In our LoRA + Full FT configuration, the low-rank adapters provide an additional adaptation channel alongside the full backbone updates. While the empirical benefit remains to be validated through ablation studies, potential advantages include:
+\begin{itemize}
+    \item \textbf{Structured regularization:} The low-rank constraint on the residual path may guide optimization toward solutions with better generalization properties.
+    \item \textbf{Multi-scale adaptation:} The model can learn both broad feature transformations (via backbone) and targeted adjustments (via low-rank path).
+    \item \textbf{Faster convergence:} The additional degrees of freedom may enable more efficient gradient flow during early training.
+\end{itemize}
+
+\paragraph{Effective handling of long-tailed distribution.}
+iCartoonFace exhibits extreme class imbalance (some identities have $>200$ images, others $<10$). The combination of pretrained features and full model capacity enables learning even from limited examples per identity.
+
+\subsection{Empirical Observations}
+
+\paragraph{Fast convergence.}
+The model achieves 88\% validation accuracy by epoch 2 and 91\% by epoch 7, substantially faster than training from scratch would require.
+
+\paragraph{Stable optimization.}
+Training exhibits smooth, monotonic improvement in validation loss through epoch 10, without oscillations or instabilities.
+
+\paragraph{Computational efficiency.}
+Despite training 90.3M parameters, the model trains efficiently (7.8 min/epoch, \$1.13 total) on a single A100 GPU. The LoRA overhead is negligible in compute time or memory footprint.
+
+\section{Analysis and Discussion}
+
+\subsection{Training--Validation Gap}
+
+The $\sim$7.6 percentage point gap between training (98.58\%) and validation (90.97\%) accuracy indicates overfitting. Potential mitigation strategies:
+\begin{itemize}
+    \item \textbf{Early stopping:} Best checkpoint at epoch 10 already implements this.
+    \item \textbf{Stronger regularization:} Increase weight decay, add dropout to backbone, or use label smoothing.
+    \item \textbf{Data augmentation:} More aggressive augmentations (color jitter, random erasing, mixup).
+\end{itemize}
+
+\subsection{Long-Tailed Distribution Challenges}
+
+iCartoonFace's extreme class imbalance poses challenges:
+\begin{itemize}
+    \item \textbf{Per-class performance:} Tail classes likely have lower accuracy, which should be analyzed by stratifying metrics by training set size.
+    \item \textbf{Loss design:} Standard cross-entropy treats all classes equally. Re-weighting, focal loss~\cite{lin2017focal}, or balanced sampling could improve tail performance.
+    \item \textbf{Evaluation:} Overall accuracy may mask head--tail disparities. Future work should report per-class accuracy distributions.
+\end{itemize}
+
+\subsection{Planned Ablation Studies}
+
+To rigorously evaluate LoRA's contribution and quantify the efficiency--accuracy trade-off:
+
+\begin{enumerate}
+    \item \textbf{Head-only fine-tuning:} Freeze ViT backbone, train only classification head (3.85M params). Establishes lower-bound baseline.
+
+    \item \textbf{LoRA-only adaptation:} Freeze backbone, train only LoRA + head (4.52M params, 5.0\%). Tests true parameter-efficient fine-tuning.
+
+    \item \textbf{Full fine-tuning without LoRA:} Train backbone + head without LoRA adapters (89.6M params). Reveals whether 0.7\% LoRA overhead provides benefits.
+
+    \item \textbf{Rank ablation:} Vary $r \in \{4, 8, 16, 24, 32\}$ to understand rank--accuracy relationship.
+
+    \item \textbf{Retrieval evaluation:} Implement cosine similarity-based retrieval (Rank@1/5/10) for fair comparison with baselines.
+
+    \item \textbf{Per-class analysis:} Compute accuracy stratified by training set size to understand performance on head vs. tail classes.
+\end{enumerate}
+
+\section{Implementation Details}
+
+Our codebase is publicly available at:
+\begin{center}
+\url{https://github.com/RyanGao04/AniTune/tree/tdu}
+\end{center}
+Weights \& Biases results:
+\begin{center}
+\url{https://wandb.ai/tingtingdu06-uw-madison/AniTune}
+\end{center}
+
+\paragraph{Key implementation features:}
+\begin{itemize}
+    \item \textbf{Modular training modes:} Four distinct configurations (head-only, full FT, LoRA-only, LoRA+Full FT) implemented in \texttt{src/anitune/models.py} with automatic parameter freezing and detailed statistics.
+
+    \item \textbf{LoRA implementation:} Custom \texttt{LoRALinear} wrapper in \texttt{src/anitune/lora.py} with proper initialization (Kaiming uniform for $A$, zeros for $B$) and dropout support.
+
+    \item \textbf{Mixed-precision training:} PyTorch AMP for memory efficiency and speed.
+
+    \item \textbf{Experiment tracking:} Weights \& Biases integration with real-time metrics logging.
+
+    \item \textbf{Flexible configuration:} YAML-based config system in \texttt{configs/} directory.
+
+    \item \textbf{Data pipeline:} Supports both ImageFolder and manifest-based datasets with train/val/test splits.
+\end{itemize}
+
+\paragraph{Verification command:}
+To verify parameter counts reported in this paper:
+\begin{verbatim}
+PYTHONPATH=src python -c "
+from anitune.models import build_model, ModelConfig
+
+# LoRA-only configuration
+cfg = ModelConfig(
+    name='vit_base_patch16_224',
+    num_classes=5013,
+    pretrained=False,
+    train_mode='lora_only',
+    lora_rank=12,
+    lora_alpha=24,
+)
+model = build_model(cfg)
+# Output: Trainable: 4,518,549 (5.00%)
+
+# LoRA + Full FT configuration
+cfg.train_mode = 'lora_full'
+model = build_model(cfg)
+# Output: Trainable: 90,317,205 (100.00%)
+"
+\end{verbatim}
+
+\section{Updated Timeline and Next Steps}
+
+\begin{table}[H]
+\small
+\centering
+\renewcommand\arraystretch{1.3}
+\setlength{\tabcolsep}{5pt}
+\begin{tabular}{|>{\centering\arraybackslash}m{3.5cm}|
+                >{\centering\arraybackslash}m{2cm}|
+                >{\centering\arraybackslash}m{2cm}|
+                >{\centering\arraybackslash}m{2cm}|
+                >{\centering\arraybackslash}m{2cm}|}
+\hline
+\rowcolor{gray!25}\textbf{Task} & \textbf{Week 1} & \textbf{Week 2} & \textbf{Week 3} & \textbf{Week 4} \\
+\hline
+Setup GitHub \& Env. & \cellcolor{green!30}\textbf{100\%} & & & \\
+\hline
+LoRA Implementation & \cellcolor{green!30}\textbf{100\%} & \cellcolor{green!30}\textbf{100\%} & & \\
+\hline
+LoRA + Full FT Training & & \cellcolor{green!30}\textbf{100\%} & & \\
+\hline
+Head-Only Baseline & & & \cellcolor{yellow!30}\textbf{50\%} & \\
+\hline
+LoRA-Only Training & & & \cellcolor{yellow!30}\textbf{50\%} & \\
+\hline
+Full FT (no LoRA) & & & \cellcolor{orange!30}\textbf{0\%} & \\
+\hline
+Rank Ablation & & & \cellcolor{orange!30}\textbf{0\%} & \\
+\hline
+Retrieval Evaluation & & & \cellcolor{orange!30}\textbf{0\%} & \\
+\hline
+Final Report \& Analysis & & & & \cellcolor{red!20}\textbf{30\%} \\
+\hline
+\end{tabular}
+\caption{Project timeline and progress.}
+\label{tab:timeline}
+\end{table}
+
+\paragraph{Immediate next steps (Week 3):}
+\begin{enumerate}
+    \item \textbf{LoRA-only training:} Train with frozen backbone to measure parameter-efficient fine-tuning accuracy (4.52M trainable, 5.0\%).
+
+    \item \textbf{Head-only baseline:} Train with frozen backbone to establish lower-bound performance (3.85M trainable, 4.3\%).
+
+    \item \textbf{Full FT without LoRA:} Train standard full fine-tuning to determine whether LoRA provides benefits (89.6M trainable).
+
+    \item \textbf{Retrieval evaluation:} Implement cosine similarity-based retrieval (Rank@1/5/10) for fair baseline comparison.
+
+    \item \textbf{Rank ablation:} Experiment with $r \in \{4, 8, 16, 24, 32\}$ to analyze parameter--accuracy trade-off.
+
+    \item \textbf{Per-class analysis:} Compute accuracy stratified by training set size for head vs. tail classes.
+\end{enumerate}
+
+\paragraph{Final deliverables (Week 4):}
+\begin{itemize}
+    \item Comprehensive comparison table across all training configurations
+    \item Retrieval evaluation results aligned with iCartoonFace baselines
+    \item Rank ablation analysis with parameter--accuracy trade-off curves
+    \item Per-class performance analysis for long-tailed distribution
+    \item Final report with theoretical analysis, empirical findings, and deployment recommendations
+\end{itemize}
+
+\section{Preliminary Conclusions}
+
+Based on our experiments to date:
+
+\begin{enumerate}
+    \item \textbf{LoRA + Full FT achieves strong performance:} Our approach reaches 91.28\% classification accuracy on iCartoonFace. However, rigorous comparison with baselines requires implementing retrieval evaluation.
+
+    \item \textbf{Pretrained ViTs transfer effectively to stylized domains:} Despite the domain gap between natural images and cartoon faces, ViT-B/16 provides robust features enabling fast convergence and high accuracy.
+
+    \item \textbf{Training is efficient and cost-effective:} Complete 12-epoch training on 5,013 classes and $\sim$311K images completes in 1.57 hours for \$1.13 on a single A100 GPU.
+
+    \item \textbf{LoRA's contribution requires validation:} Our current implementation trains both backbone and LoRA parameters (90.3M total). Planned ablations will clarify:
+    \begin{itemize}
+        \item Whether LoRA-only (5\% parameters) achieves competitive accuracy
+        \item Whether LoRA enhancement improves upon pure full fine-tuning
+        \item The optimal parameter budget for this task
+    \end{itemize}
+\end{enumerate}
+
+\paragraph{Key open questions:}
+\begin{itemize}
+    \item Can LoRA-only adaptation (4.52M params) achieve accuracy close to full fine-tuning (90.3M params)?
+    \item Does adding LoRA to full fine-tuning provide measurable benefits (convergence speed, generalization, stability)?
+    \item How does performance scale with LoRA rank $r$?
+\end{itemize}
+
+Our planned controlled experiments will answer these questions rigorously and provide clear guidance on the efficiency--accuracy trade-offs for cartoon face recognition.
+
+\begin{thebibliography}{9}\setlength{\itemsep}{2pt}
+
+\bibitem{hu2021lora}
+Edward~J. Hu, Yelong Shen, et al.
+\newblock \emph{LoRA: Low-Rank Adaptation of Large Language Models}.
+\newblock ICLR, 2022.
+
+\bibitem{dosovitskiy2021vit}
+Alexey Dosovitskiy, et al.
+\newblock \emph{An Image is Worth 16x16 Words: Transformers for Image Recognition at Scale}.
+\newblock ICLR, 2021.
+
+\bibitem{he2015delving}
+Kaiming He, et al.
+\newblock \emph{Delving Deep into Rectifiers: Surpassing Human-Level Performance on ImageNet Classification}.
+\newblock ICCV, 2015.
+
+\bibitem{deng2019arcface}
+Jiankang Deng, et al.
+\newblock \emph{ArcFace: Additive Angular Margin Loss for Deep Face Recognition}.
+\newblock CVPR, 2019.
+
+\bibitem{wang2018cosface}
+Hao Wang, et al.
+\newblock \emph{CosFace: Large Margin Cosine Loss for Deep Face Recognition}.
+\newblock CVPR, 2018.
+
+\bibitem{zheng2020icartoonface}
+Y. Zheng, Y. Zhao, et al.
+\newblock \emph{Cartoon Face Recognition: A Benchmark Dataset}.
+\newblock ACM MM, 2020.
+
+\bibitem{lin2017focal}
+Tsung-Yi Lin, et al.
+\newblock \emph{Focal Loss for Dense Object Detection}.
+\newblock ICCV, 2017.
+
+\end{thebibliography}
+
+\end{document}

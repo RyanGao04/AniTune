@@ -16,7 +16,7 @@ Tip: set `PYTHONPATH=src` when running scripts from the repo root. The venv rout
 3) Generate manifests (no file copying):
 ```bash
 python scripts/prepare_icartoonface.py \
-  --source data/personai_icartoonface_rectrain/icartoonface_rectrain \
+  --source data/personai_icartoonface_rec/personai_icartoonface_rectrain/icartoonface_rectrain \
   --output data/icartoonface \
   --val-ratio 0.1 --seed 42
 ```
@@ -42,6 +42,30 @@ PYTHONPATH=src python scripts/eval.py \
   --checkpoint runs/lora_vitb16/best.pt \
   --data-root data/personai_icartoonface_rectrain/icartoonface_rectrain
 ```
+
+## Error Analysis
+Analyze prediction errors and generate visualizations:
+```bash
+./run_error_analysis.sh
+```
+
+Or run manually:
+```bash
+PYTHONPATH=src python scripts/error_analysis.py \
+  --config configs/lora_vitb16_a100_balanced.yaml \
+  --checkpoint runs/lora_vitb16_a100_balanced/best.pt \
+  --data-root data/personai_icartoonface_rectrain/icartoonface_rectrain \
+  --output-dir error_analysis_results
+```
+
+Generated visualizations:
+- Confusion matrix (top-50 classes)
+- Most confused class pairs
+- Per-class accuracy distribution
+- Error sample visualizations
+- Detailed statistics (JSON)
+
+See [ERROR_ANALYSIS.md](ERROR_ANALYSIS.md) for detailed documentation.
 To score against the official recognition test split (`personai_icartoonface_rectest`), point the evaluator at the test directory/manifest:
 ```bash
 PYTHONPATH=src python scripts/eval.py \
