@@ -1,5 +1,4 @@
 LICENSE
-README.md
 setup.py
 src/anitune/__init__.py
 src/anitune/data.py

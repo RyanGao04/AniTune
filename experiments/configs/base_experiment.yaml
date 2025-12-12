@@ -1,0 +1,29 @@
+# 基础实验配置
+# 所有实验共享的基础配置
+
+seed: 42
+run_name: vit_experiment
+save_dir: experiments/runs
+
+data:
+  root: data/personai_icartoonface_rec/personai_icartoonface_rectrain/icartoonface_rectrain
+  img_size: 224
+  train_split: 0.9
+  batch_size: 512
+  num_workers: 8
+  use_grayscale: false
+  manifest_dir: data/icartoonface/splits
+
+model:
+  name: vit_base_patch16_224
+  num_classes: 5013  # 会被自动推断覆盖
+  pretrained: true
+  # use_lora 和 train_mode 由命令行参数设置
+  img_size: 224
+
+optim:
+  lr: 2.0e-4
+  weight_decay: 0.05
+  epochs: 10
+  amp: true
+  log_interval: 50

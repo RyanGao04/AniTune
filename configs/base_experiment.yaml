@@ -6,10 +6,10 @@ run_name: vit_experiment
 save_dir: experiments/runs
 
 data:
-  root: data/personai_icartoonface_rectrain/icartoonface_rectrain
+  root: data/personai_icartoonface_rec/personai_icartoonface_rectrain/icartoonface_rectrain
   img_size: 224
   train_split: 0.9
-  batch_size: 64
+  batch_size: 512
   num_workers: 8
   use_grayscale: false
   manifest_dir: data/icartoonface/splits
