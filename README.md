@@ -143,7 +143,7 @@ for RANK in 4 8 16 24 32; do
 done
 ```
 
-| Rank | Trainable Params | Val Accuracy |
+| Rank | Trainable Params | Accuracy |
 |------|------------------|--------------|
 | 4 | 150K (0.17%) | ~91.8% |
 | 8 | 300K (0.35%) | ~93.1% |
