@@ -1,0 +1,34 @@
+# A100优化配置 - 极速版
+# 适用场景：最快速度，用于快速验证想法或debug
+# 预计训练时间：~30-40分钟/10 epochs
+# 显存占用：~35-38GB（接近40GB上限）
+
+seed: 42
+run_name: lora_vitb16_a100_maxspeed
+save_dir: runs
+
+data:
+  root: data/personai_icartoonface_rectrain/icartoonface_rectrain
+  img_size: 224
+  train_split: 0.9
+  batch_size: 192        # 最大化batch size，充分利用显存
+  num_workers: 20        # 最大化数据加载速度
+  use_grayscale: false
+  manifest_dir: data/icartoonface/splits
+
+model:
+  name: vit_base_patch16_224
+  num_classes: 5013
+  pretrained: true
+  use_lora: true
+  lora_rank: 8           # 保持较小rank以节省显存
+  lora_alpha: 16
+  lora_dropout: 0.05
+
+optim:
+  lr: 3.0e-4             # 大batch size需要更高学习率
+  weight_decay: 0.05
+  epochs: 10
+  amp: true
+  log_interval: 25
+

@@ -1,11 +1,19 @@
-# Core training stack
-torch
-torchvision
-pyyaml
-timm
-tqdm
-wandb
+# AniTune Dependencies
+# 用于 A100 虚拟机的固定版本依赖
 
-# Optional: experiment tracking / analysis
-pandas
-matplotlib
+# Core training stack
+# PyTorch 在 setup_a100.sh 中根据 CUDA 版本安装
+pyyaml>=6.0
+timm>=0.9.12
+tqdm>=4.66.0
+wandb>=0.16.0
+
+# Data processing and visualization
+pandas>=2.1.0
+matplotlib>=3.8.0
+seaborn>=0.13.0
+Pillow>=10.1.0
+
+# Scientific computing
+numpy>=1.24.0
+scipy>=1.11.0

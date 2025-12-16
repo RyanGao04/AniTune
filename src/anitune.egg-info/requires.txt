@@ -1,2 +1,13 @@
+torch
+torchvision
+pyyaml
+timm
+tqdm
+wandb
+pandas
+matplotlib
 
 [dev]
+pytest
+black
+ruff

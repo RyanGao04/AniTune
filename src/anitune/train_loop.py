@@ -89,7 +89,7 @@ def run_train(
     optimizer = optim.AdamW(model.parameters(), lr=optim_cfg.lr, weight_decay=optim_cfg.weight_decay)
     scaler = GradScaler(enabled=optim_cfg.amp)
 
-    total_params, trainable_params = count_parameters(model)
+    total_params, trainable_params, _ = count_parameters(model)
     print(f"Total params: {total_params/1e6:.2f}M | Trainable params: {trainable_params/1e6:.2f}M")
 
     best_acc = 0.0

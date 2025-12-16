@@ -1,6 +1,5 @@
 LICENSE
-README.md
-pyproject.toml
+setup.py
 src/anitune/__init__.py
 src/anitune/data.py
 src/anitune/lora.py

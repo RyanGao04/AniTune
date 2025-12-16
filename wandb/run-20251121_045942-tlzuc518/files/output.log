@@ -1,0 +1,11 @@
+/workspace/AniTune/src/anitune/train_loop.py:90: FutureWarning: `torch.cuda.amp.GradScaler(args...)` is deprecated. Please use `torch.amp.GradScaler('cuda', args...)` instead.
+  scaler = GradScaler(enabled=optim_cfg.amp)
+Total params: 90.32M | Trainable params: 61.97M
+train:   0%|                                                    | 0/2452 [00:00<?, ?it/s]/venv/anitune/lib/python3.10/site-packages/torch/utils/data/dataloader.py:627: UserWarning: This DataLoader will create 16 worker processes in total. Our suggested max number of worker in current system is 12, which is smaller than what this DataLoader is going to create. Please be aware that excessive worker creation might get DataLoader running slow or even freeze, lower the worker number to avoid potential slowness/freeze if necessary.
+  warnings.warn(
+/workspace/AniTune/src/anitune/train_loop.py:33: FutureWarning: `torch.cuda.amp.autocast(args...)` is deprecated. Please use `torch.amp.autocast('cuda', args...)` instead.
+  with autocast(enabled=cfg.amp):
+/workspace/AniTune/src/anitune/train_loop.py:65: FutureWarning: `torch.cuda.amp.autocast(args...)` is deprecated. Please use `torch.amp.autocast('cuda', args...)` instead.
+  with autocast(enabled=amp):
+Epoch 1/12 | train_loss=2.7996 acc=0.5431 | val_loss=0.6916 acc=0.8411
+train:  77%|█████████████▉    | 1898/2452 [05:14<01:30,  6.09it/s, acc=0.897, loss=0.434]
