@@ -24,3 +24,8 @@ personai_icartoonface_rectrain.zip
 
 # Agent
 AGENTS.md
+/.venv_local
+/.venv_local
+/.venv_local/bin
+.venv_local/bin/activate
+/.venv_local
